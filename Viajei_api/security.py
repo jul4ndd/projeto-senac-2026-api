@@ -1,26 +1,32 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from jwt import encode 
+from jwt import encode
+from pwdlib import PasswordHash
 
-SECRET_KEY = 'your-very-secre-and-exclusive-key'
-ALGORITIMO = 'hs256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-contexto_senha = PassawordHash.recommend
+CHAVE_SECRETA = "your-very-secret-and-exclusive-key"
+ALGORITMO = "HS256"
+TOKEN_ACESSO_MINUTOS_EXPIRAR = 30
+contexto_senha = PasswordHash.recommended()
 
-def creat_token(dados: dict):
+
+def create_token(dados: dict):
     para_codificar = dados.copy()
     # BR = UTC-03
-    expira = datetime.now(
-        tz=ZoneInfo('UTC')
-        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expira = datetime.now(tz=ZoneInfo("UTC")) + timedelta(
+        minutes=TOKEN_ACESSO_MINUTOS_EXPIRAR
     )
 
-    para_codificar.update({'exp': expira})
-    jwt_codificado = encode(para_codificar,
-    CHAVE_SECRETA,
-    algorithm=ALGORITIMO
-    )
+    para_codificar.update({"exp": expira})
+    jwt_codificado = encode(para_codificar, CHAVE_SECRETA, algorithm=ALGORITMO)
 
     return jwt_codificado
+
+
+def get_password_hash(password: str):
+    return contexto_senha.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str):
+    return contexto_senha.verify(plain_password, hashed_password)
 
