@@ -1,6 +1,9 @@
 from http import HTTPStatus
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,12 +11,28 @@ from viajei_api.database import get_session
 from viajei_api.models import User
 from viajei_api.schemas.message import Message
 from viajei_api.schemas.user import UserList, UserPublic, UserSchema
-from Viajei_api.security import get_password_hash, creat_token, verify_password
+from viajei_api.security import (
+    create_token,
+    get_password_hash,
+    verify_password,
+)
 
 app = FastAPI()
 
-database = []
 
+origins = [
+    "http://localhost:3000",
+    "htpp://127.0.0.1:3000",
+    "http://localhost:5000",
+    "htpp://127.0.0.1:5000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
 
 @app.get("/")
 def read_root():
@@ -28,7 +47,9 @@ def create_user(user: UserSchema, session: Session = Depends(get_session)):
     if db_user:
         raise HTTPException(HTTPStatus.CONFLICT, detail="Esse email já existe")
 
-    db_user = User(email=user.email, password=user.password)
+    hashed_password = get_password_hash(user.password)
+
+    db_user = User(email=user.email, password=hashed_password)
 
     session.add(db_user)
     session.commit()
@@ -52,8 +73,7 @@ def delete_user(user_id: int, session: Session = Depends(get_session)):
 
     if not db_user:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="User not found!"
+            status_code=HTTPStatus.NOT_FOUND, detail="User not found!"
         )
 
     session.delete(db_user)
@@ -61,10 +81,12 @@ def delete_user(user_id: int, session: Session = Depends(get_session)):
 
     return {"message": "User deleted!"}
 
-@app.post('/auth')
-def retrieve_token():
-    dados_form = OAuth2passwordRequestFrom = Depends(),
-    session: Session = Depends(get_session)
+
+@app.post("/auth")
+def retrieve_token(
+    dados_form: OAuth2PasswordRequestForm = Depends(),
+    session: Session = Depends(get_session),
+):
 
     user = session.scalar(
         select(User).where(User.email == dados_form.username)
@@ -72,16 +94,32 @@ def retrieve_token():
 
     if not user:
         raise HTTPException(
-            HTTPStatus.UNAUTHORIZED,
-            detail='Esse email não existe'
+            HTTPStatus.UNAUTHORIZED, detail="Esse email não existe"
         )
-    
+
     if not verify_password(dados_form.password, user.password):
         raise HTTPException(
-            HTTPStatus.UNAUTHORIZED,
-            detail='Email ou senha incorretos'
+            HTTPStatus.UNAUTHORIZED, detail="Email ou senha incorretos"
         )
+
+    token_acesso = create_token(dados={"sub": user.email})
+    return {"access_token": token_acesso, "token_type": "bearer"}
+
+@app.post('/story', status_code=HTTPStatus.CREATED,response_model=StoryPublic)
+def created_story(story: StorySchema,
+                 session: Session = depends(get_session),
+                 user: User = Depends(get_current_user)):
     
-    token_acesso = creat_token(dados={'sub': user.email})
-    return
-    
+    new_story = Story(
+        author=story.author,
+        title=story.title,
+        story=story.story
+    )
+
+    new_story.email = user.email
+
+    session.add(new_story)
+    session.commit()
+    session.refresh(new_story)
+
+    return new_story

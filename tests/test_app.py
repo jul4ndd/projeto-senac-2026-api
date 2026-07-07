@@ -29,10 +29,16 @@ def test_create_user(client):
         "id": 1,
     }
 
+def test_read_story(authenticated_user):
 
-def test_read_user(client):
-
-    response = client.get("/users/")
+    response = client.post(
+        "/story",
+        json={
+            "author": "julie",
+            "title": "Se essa casa fosse minha",
+            "story": "Era uma vez...",
+        },
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {"users": []}

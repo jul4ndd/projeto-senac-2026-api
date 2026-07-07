@@ -59,15 +59,27 @@ def session():
     engine.dispose()
 
 
+    @pytest.fixture
+    def user(session):
+        user = User(
+            email="example@example.com",
+            password=get_password_hash("secret")
+        )
+
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    user.clean_passwd = password
+    return user 
+
 @pytest.fixture
-def user(session):
-    user = User(
-        email="example@example.com",
-        password=get_password_hash("secret")
-    )
+def authenticated_user(client, user):
+    def mock_get_current_user():
+        return user
+    
+    app.dependency_overrides[get_current_user] = mock_get_current_user
+    yield client 
 
-    session.add(user)
-    session.commit()
-    session.refresh(user)
 
-    return user
+    app.dependency_overrides.clear()
